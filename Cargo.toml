@@ -3,5 +3,11 @@ name = "MushokuTensei"
 version = "0.1.0"
 edition = "2024"
 
+[profile.dev]
+opt-level = 0
+
+
 [dependencies]
-bevy = "0.17.3"
+bevy = { version = "0.16.0", features = ["dynamic_linking", "file_watcher"] }
+bevy_app_compute = { path = "bevy_app_compute" }
+
