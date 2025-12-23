@@ -41,50 +41,6 @@ impl Node {
             ),
         }
     }
-
-    pub fn new_empty() -> Self {
-        Self {
-            packed_data: UVec4::ZERO,
-        }
-    }
-
-    pub fn set_leaf(&mut self, is_leaf: bool) {
-        if is_leaf {
-            self.packed_data.x |= 1;
-        } else {
-            self.packed_data.x &= !1;
-        }
-    }
-
-    pub fn set_absolute_ptr(&mut self, is_abs: bool) {
-        if is_abs {
-            self.packed_data.x |= 2;
-        } else {
-            self.packed_data.x &= !2;
-        }
-    }
-
-    pub fn set_child_ptr(&mut self, ptr: u32) {
-        self.packed_data.x &= 3;
-        self.packed_data.x |= ptr << 2;
-    }
-
-    pub fn get_child_ptr(&self) -> u32 {
-        self.packed_data.x >> 2
-    }
-
-    pub fn set_pop_mask(&mut self, mask: u64) {
-        self.packed_data.y = mask as u32;
-        self.packed_data.z = (mask >> 32) as u32;
-    }
-
-    pub fn get_pop_mask(&self) -> u64 {
-        (self.packed_data.y as u64) | ((self.packed_data.z as u64) << 32)
-    }
-
-    pub fn is_leaf(&self) -> bool {
-        (self.packed_data.x & 1) != 0
-    }
 }
 
 #[repr(C)]
