@@ -26,7 +26,7 @@ impl ComputeWorker for WriteTextureWorker {
         AppComputeWorkerBuilder::new(world)
             .add_uniform("pc", &DispatchParams::default())
             .add_storage("nodePool", &[Node::default()])
-            .add_storage("leafData", &[UVec4::ZERO])
+            .add_storage("leafData", &[0u32])
             .add_texture(
                 "out_tex",
                 width,

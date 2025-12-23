@@ -21,7 +21,7 @@ struct DispatchParams {
 
 @group(0) @binding(0) var<uniform> pc: DispatchParams;
 @group(0) @binding(1) var<storage, read> nodePool: array<Node>;
-@group(0) @binding(2) var<storage, read> leafData: array<vec4<u32>>;
+@group(0) @binding(2) var<storage, read> leafData: array<u32>;
 @group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
 
 fn is_leaf(node: Node) -> bool {
@@ -182,7 +182,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
 
     if (!hit.miss) {
         pos = get_mirrored_pos(pos, dir, false);
-        hit.materialid = i32(leafData[child_ptr(node) + popcnt_var64(node, childIdx)].x);
+        hit.materialid = i32(leafData[child_ptr(node) + popcnt_var64(node, childIdx)]);
         hit.pos = pos;
         let tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
         hit.normal = select(vec3(0.0), -sign(dir), sideDist <= vec3(tmax));

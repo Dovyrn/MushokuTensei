@@ -1,4 +1,4 @@
-use bevy::prelude::{Mat4, Resource, UVec4, Vec4};
+use bevy::prelude::{Mat4, Reflect, Resource, UVec4, Vec4};
 use bevy::render::render_resource::ShaderType;
 use bytemuck::{Pod, Zeroable};
 
@@ -18,6 +18,27 @@ impl Default for AppSettings {
         }
     }
 }
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Reflect, ShaderType, Pod, Zeroable)]
+pub struct Material {
+    pub color : [f32;3],
+    pub yield_strength : f32,
+    pub density : f32,
+    pub friction : f32,
+}
+
+impl Default for Material {
+    fn default() -> Self {
+        Self {
+            color : [0.5, 0.5, 0.5],
+            yield_strength : 100.0,
+            density : 2500.0,
+            friction : 0.5
+        }
+    }
+}
+
 
 #[repr(C)]
 #[derive(ShaderType, Clone, Copy, Default, Debug, Pod, Zeroable)]
@@ -58,3 +79,21 @@ impl Default for DispatchParams {
         }
     }
 }
+
+
+pub struct Brick {
+    pub voxels : [u8; 64]
+}
+
+impl Brick {
+    pub fn pack_bits_64(&self) -> u64 {
+        let mut mask = 0u64;
+        for (i, &mat_id) in self.voxels.iter().enumerate() {
+            if mat_id != 0 {
+                mask |= 1 << i;
+            }
+        }
+        mask
+    }
+}
+

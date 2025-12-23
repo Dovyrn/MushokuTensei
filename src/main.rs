@@ -1,6 +1,7 @@
 mod compute;
 mod config;
 mod render;
+mod VoxelMap;
 
 use bevy::prelude::*;
 use bevy::render::{Render, RenderApp, RenderSet, extract_resource::ExtractResourcePlugin};
