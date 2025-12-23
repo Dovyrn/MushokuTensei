@@ -1,14 +1,16 @@
-mod config;
 mod compute;
+mod config;
 mod render;
+mod tree;
+mod voxel_map;
 
 use bevy::prelude::*;
-use bevy::window::WindowResolution;
 use bevy::render::{Render, RenderApp, RenderSet, extract_resource::ExtractResourcePlugin};
+use bevy::window::WindowResolution;
 use bevy_app_compute::prelude::*;
 
+use crate::compute::{WriteTextureWorker, handle_compute_params};
 use crate::config::AppSettings;
-use crate::compute::WriteTextureWorker;
 use crate::render::*;
 
 fn main() {
@@ -20,7 +22,10 @@ fn main() {
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Mushoku Tensei".to_string(),
-                    resolution: WindowResolution::new(settings.width as f32, settings.height as f32),
+                    resolution: WindowResolution::new(
+                        settings.width as f32,
+                        settings.height as f32,
+                    ),
                     ..default()
                 }),
                 ..default()
@@ -30,18 +35,18 @@ fn main() {
                 ..default()
             }),
     )
-        .insert_resource(settings)
-        .add_plugins(AppComputePlugin)
-        .add_plugins(AppComputeWorkerPlugin::<WriteTextureWorker>::default())
-        .add_plugins((
-            ExtractResourcePlugin::<DisplayImage>::default(),
-            ExtractResourcePlugin::<ComputeTransfer>::default(),
-        ))
-        .add_systems(Startup, setup_camera)
-        .add_systems(Update, (
-            handle_resize,
-            extract_compute_view
-        ).chain());
+    .insert_resource(settings)
+    .add_plugins(AppComputePlugin)
+    .add_plugins(AppComputeWorkerPlugin::<WriteTextureWorker>::default())
+    .add_plugins((
+        ExtractResourcePlugin::<DisplayImage>::default(),
+        ExtractResourcePlugin::<ComputeTransfer>::default(),
+    ))
+    .add_systems(Startup, setup_camera)
+    .add_systems(
+        Update,
+        (handle_resize, handle_compute_params, extract_compute_view).chain(),
+    );
 
     if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
         render_app.add_systems(Render, link_compute_texture.in_set(RenderSet::Prepare));

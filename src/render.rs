@@ -1,12 +1,14 @@
+use crate::compute::WriteTextureWorker;
+use crate::config::AppSettings;
 use bevy::prelude::*;
-use bevy::window::WindowResized;
 use bevy::render::extract_resource::ExtractResource;
 use bevy::render::render_asset::{RenderAssetUsages, RenderAssets};
-use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureView, TextureUsages};
+use bevy::render::render_resource::{
+    Extent3d, TextureDimension, TextureFormat, TextureUsages, TextureView,
+};
 use bevy::render::texture::GpuImage;
+use bevy::window::WindowResized;
 use bevy_app_compute::prelude::*;
-use crate::config::AppSettings;
-use crate::compute::WriteTextureWorker;
 
 #[derive(Resource, Clone, ExtractResource, Default)]
 pub struct DisplayImage(pub Handle<Image>);
@@ -14,13 +16,27 @@ pub struct DisplayImage(pub Handle<Image>);
 #[derive(Resource, Clone, ExtractResource)]
 pub struct ComputeTransfer(pub TextureView);
 
+#[derive(Component)]
+pub struct VoxelCamera;
+
 pub fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((
+        Camera2d::default(),
+        Camera {
+            order: 1,
+            ..default()
+        },
+    ));
+    commands.spawn((Camera3d::default(), VoxelCamera));
 }
 
 pub fn handle_resize(world: &mut World) {
     let resize_events = world.resource_mut::<Events<WindowResized>>();
-    let events: Vec<WindowResized> = resize_events.get_cursor().read(&resize_events).cloned().collect();
+    let events: Vec<WindowResized> = resize_events
+        .get_cursor()
+        .read(&resize_events)
+        .cloned()
+        .collect();
 
     if events.is_empty() && world.get_resource::<DisplayImage>().is_some() {
         return;
@@ -75,7 +91,8 @@ pub fn create_gpu_image(width: u32, height: u32) -> Image {
         RenderAssetUsages::RENDER_WORLD,
     );
 
-    image.texture_descriptor.usage |= TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
+    image.texture_descriptor.usage |=
+        TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING;
 
     image
 }
@@ -84,7 +101,7 @@ pub fn extract_compute_view(
     worker: Res<AppComputeWorker<WriteTextureWorker>>,
     mut commands: Commands,
 ) {
-    if let Some(texture) = worker.get_texture("output_texture") {
+    if let Some(texture) = worker.get_texture("out_tex") {
         commands.insert_resource(ComputeTransfer(texture.view().clone()));
     }
 }
