@@ -11,7 +11,6 @@ struct HitInfo {
     pos: vec3<f32>,
     normal: vec3<f32>,
     steps: i32,
-    miss: bool,
 };
 
 struct DispatchParams {
@@ -108,7 +107,6 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
     hit.materialid = 0;
     hit.normal = vec3(0.0);
     hit.pos = vec3(0.0);
-    hit.miss = true;
 
     var stack: array<u32, 11>;
     var scaleExp: i32 = 21;
@@ -117,6 +115,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
 
     let invDir = 1.0 / -abs(dir);
     var mirrorMask: u32 = 0u;
+
     if (dir.x > 0.0) { mirrorMask |= 3u << 0u; }
     if (dir.y > 0.0) { mirrorMask |= 3u << 4u; }
     if (dir.z > 0.0) { mirrorMask |= 3u << 2u; }
@@ -150,7 +149,6 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
         }
 
         if (check_pop_mask(node, childIdx) && is_leaf(node) && !skipNextHit) {
-            hit.miss = false;
             break;
         }
 
@@ -161,6 +159,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
         }
 
         let edgePos = floor_scale(pos, advScaleExp);
+
         sideDist = (edgePos - origin) * invDir;
         let tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
 
@@ -180,7 +179,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
         hit.steps = i;
     }
 
-    if (!hit.miss) {
+    if (is_leaf(node) && scaleExp <= 21) {
         pos = get_mirrored_pos(pos, dir, false);
         hit.materialid = i32(leafData[child_ptr(node) + popcnt_var64(node, childIdx)]);
         hit.pos = pos;
@@ -197,13 +196,12 @@ fn main(@builtin(global_invocation_id) screenPos: vec3<u32>) {
 
     let ray = get_primary_ray(screenPos.xy);
     let scale = 1.0 / f32(1u << u32(pc.camera_origin.w));
-    let origin = ray.pos * scale + 1.0;
-
+    let origin = vec3(0.0) * scale + ray.pos * scale + 1.0;
     let hit = raycast(origin, ray.dir);
     var albedo = vec3(0.53, 0.81, 0.98);
-    if (!hit.miss) {
-        albedo = hit.normal * 0.5 + 0.5;
-    }
-
+//    if (!hit.miss) {
+//        albedo = hit.normal * 0.5 + 0.5;
+//    }
+    albedo = viridis((f32(hit.steps) / 50));
    textureStore(out_tex, screenPos.xy, vec4(albedo, 1.0));
 }

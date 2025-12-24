@@ -8,7 +8,8 @@ opt-level = 0
 
 
 [dependencies]
-bevy = { version = "0.16.0", features = ["dynamic_linking", "file_watcher"] }
-bevy_app_compute = { path = "bevy_app_compute" }
+bevy = { version = "0.16.0", features = ["dynamic_linking", "file_watcher", "shader_format_spirv"] }
+bevy_app_compute = { path = "bevy_app_compute", features = ["shader_format_spirv"] }
 bytemuck = "1.13.1"
+uuid = { version = "1.19.0", features = ["v4"] }
 

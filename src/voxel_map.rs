@@ -1,10 +1,13 @@
+use bevy::asset::AssetId;
 use bevy::math::IVec3;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Res, ResMut, Resource};
+use uuid::Uuid;
 use crate::config::{Brick, Material, Node};
 
 pub struct Sector {
     pub bricks: HashMap<u32, Brick>,
+
 }
 
 #[derive(Resource, Default)]
@@ -18,21 +21,9 @@ pub struct SvoStorage {
     pub nodes: Vec<Node>,
     pub leaf_data: Vec<u32>,
     pub tree_scale: u32,
-    pub dirty: bool,
 }
 
-pub fn update_svo_system(
-    world: Res<VoxelWorld>,
-    mut storage: ResMut<SvoStorage>,
-) {
-    if world.sectors.is_empty() {
-        return;
-    }
 
-    world.generate_svo(&mut storage);
-
-    storage.dirty = true;
-}
 
 pub fn get_morton_key(pos: IVec3) -> u64 {
     let mut x = pos.x as u64 & 0x1FFFFF;
@@ -131,7 +122,7 @@ pub fn build_tlas(
                 let child_node = layer_nodes[i].1;
 
                 let slot_index = (child_key >> ((current_scale - 2) * 3)) & 63;
-                parent_pop_mask |= 1 << slot_index;
+                parent_pop_mask |= 1u64 << slot_index;
 
                 children_to_push.push(child_node);
                 i += 1;

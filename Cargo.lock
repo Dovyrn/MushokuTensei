@@ -9,6 +9,7 @@ dependencies = [
  "bevy",
  "bevy_app_compute",
  "bytemuck",
+ "uuid",
 ]
 
 [[package]]
@@ -2851,6 +2852,7 @@ dependencies = [
  "hexf-parse",
  "indexmap",
  "log",
+ "petgraph",
  "pp-rs",
  "rustc-hash 1.1.0",
  "spirv",
@@ -4551,6 +4553,7 @@ dependencies = [
  "arrayvec",
  "bit-vec 0.8.0",
  "bitflags 2.10.0",
+ "bytemuck",
  "cfg_aliases",
  "document-features",
  "indexmap",

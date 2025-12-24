@@ -1,21 +1,25 @@
 mod compute;
 mod config;
 mod render;
-mod VoxelMap;
+mod voxel_map;
 
+use bevy::input::mouse::MouseMotion;
+use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::{Render, RenderApp, RenderSet, extract_resource::ExtractResourcePlugin};
-use bevy::window::WindowResolution;
+use bevy::window::{CursorGrabMode, WindowResolution};
 use bevy_app_compute::prelude::*;
-
+use uuid::Uuid;
 use crate::compute::{WriteTextureWorker, handle_compute_params};
-use crate::config::AppSettings;
+use crate::config::{AppSettings, Brick, Material};
 use crate::render::*;
+use crate::voxel_map::{Sector, SvoStorage, VoxelWorld};
+
+pub const VOXEL_SHADER_ID: Uuid = Uuid::from_u128(0x52b0f15c1d6b4b4e9f7a8b9c0d1e2f34);
 
 fn main() {
     let mut app = App::new();
     let settings = AppSettings::default();
-
     app.add_plugins(
         DefaultPlugins
             .set(WindowPlugin {
@@ -41,15 +45,144 @@ fn main() {
         ExtractResourcePlugin::<DisplayImage>::default(),
         ExtractResourcePlugin::<ComputeTransfer>::default(),
     ))
-    .add_systems(Startup, setup_camera)
+        .add_systems(PreStartup, register_shader)
+    .add_systems(Startup, (setup_camera, spawn_sphere))
     .add_systems(
         Update,
-        (handle_resize, handle_compute_params, extract_compute_view).chain(),
+        (
+            camera_movement_system,
+            handle_resize,
+            rebuild_svo,
+            upload_to_gpu,
+            handle_compute_params,
+            extract_compute_view
+        ).chain(),
     );
+
+    // In main.rs
+    app.insert_resource(VoxelWorld {
+        palette: vec![
+            Material::default(),
+            Material { color: [1.0, 0.0, 0.0], ..default() },
+        ],
+        ..default()
+    })
+        .insert_resource(SvoStorage {
+            tree_scale : 10,
+            ..default()
+        });
 
     if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
         render_app.add_systems(Render, link_compute_texture.in_set(RenderSet::Prepare));
     }
 
     app.run();
+}
+
+fn register_shader(mut shaders : ResMut<Assets<Shader>>) {
+    let shader_bytes = include_bytes!("../assets/shaders/raytrace.spv");
+
+    let shader = Shader::from_spirv(shader_bytes.to_vec(), "shaders/raytrace.spv");
+
+    shaders.insert(bevy::asset::AssetId::Uuid{
+        uuid : VOXEL_SHADER_ID
+    }, shader);
+}
+
+
+pub fn spawn_sphere(mut world: ResMut<VoxelWorld>) {
+    let radius = 8;
+    let center = IVec3::splat(512);;
+    for x in -radius..=radius {
+        for y in -radius..=radius {
+            for z in -radius..=radius {
+                let offset = IVec3::new(x, y, z);
+                if offset.length_squared() <= (radius * radius) {
+                    let pos = center + offset;
+                    let sector_pos = pos >> 6;
+                    let sector = world.sectors.entry(sector_pos).or_insert(Sector {
+                        bricks: HashMap::default(),
+                    });
+
+                    let local_pos_in_sector = pos - (sector_pos << 6);
+                    let brick_pos : IVec3 = local_pos_in_sector >> 2;
+                    let brick_idx = (brick_pos.x + brick_pos.y * 16 + brick_pos.z * 256) as u32;
+
+                    let brick = sector.bricks.entry(brick_idx).or_insert(Brick {
+                        voxels: [0; 64],
+                    });
+
+                    let v_local : IVec3 = local_pos_in_sector & 3;
+                    let v_idx = (v_local.x + v_local.y * 4 + v_local.z * 16) as usize;
+                    brick.voxels[v_idx] = 1;
+                }
+            }
+        }
+    }
+    println!("Sphere generated!");
+}
+
+
+
+pub fn camera_movement_system(
+    time: Res<Time>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut mouse_motion: EventReader<MouseMotion>,
+    mut camera_q: Query<&mut Transform, With<VoxelCamera>>,
+) {
+    let Ok(mut transform) = camera_q.get_single_mut() else { return };
+
+    let mut rotation_move = Vec2::ZERO;
+    for event in mouse_motion.read() {
+        rotation_move += event.delta;
+    }
+
+    if rotation_move.length_squared() > 0.0 {
+        let sensitivity = 0.002;
+        let (mut yaw, mut pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
+
+        yaw -= rotation_move.x * sensitivity;
+        pitch -= rotation_move.y * sensitivity;
+        pitch = pitch.clamp(-1.5, 1.5);
+
+        transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);
+    }
+
+    let mut velocity = Vec3::ZERO;
+    let local_z = transform.forward();
+    let local_x = transform.right();
+
+    if keyboard.pressed(KeyCode::KeyW) { velocity += *local_z; }
+    if keyboard.pressed(KeyCode::KeyS) { velocity -= *local_z; }
+    if keyboard.pressed(KeyCode::KeyD) { velocity += *local_x; }
+    if keyboard.pressed(KeyCode::KeyA) { velocity -= *local_x; }
+
+    let speed = 100.0;
+    transform.translation += velocity.normalize_or_zero() * speed * time.delta_secs();
+}
+fn lock_cursor(mut windows: Query<&mut Window>) {
+    let mut window = windows.single_mut().unwrap();
+    window.cursor_options.grab_mode = CursorGrabMode::Locked;
+    window.cursor_options.visible = false;
+}
+
+
+fn rebuild_svo(
+    world : Res<VoxelWorld>,
+    mut svo : ResMut<SvoStorage>,
+) {
+    if (world.is_changed()) {
+        world.generate_svo(&mut svo);
+        print!("Generated SVO");
+    }
+}
+
+fn upload_to_gpu(
+    svo : Res<SvoStorage>,
+    mut worker : ResMut<AppComputeWorker<WriteTextureWorker>>,
+) {
+    if svo.is_changed() {
+        worker.write_slice("nodePool", &svo.nodes);
+        worker.write_slice("leafData", &svo.leaf_data);
+    }
 }
