@@ -30,7 +30,7 @@ pub fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         VoxelCamera,
-        Transform::from_xyz(512.0, 512.0, 600.0) // Look at the sphere from a distance
+        Transform::from_xyz(0.0, 0.0, 0.0) 
             .looking_at(Vec3::splat(512.0), Vec3::Y),
     ));
 }

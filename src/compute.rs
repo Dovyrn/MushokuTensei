@@ -4,16 +4,12 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{ShaderRef, StorageTextureAccess, TextureFormat};
 use bevy_app_compute::prelude::*;
 use crate::voxel_map::SvoStorage;
-use crate::VOXEL_SHADER_ID;
 #[derive(TypePath)]
 pub struct VoxelShader;
 
 impl ComputeShader for VoxelShader {
     fn shader() -> ShaderRef {
-        let asset_id = AssetId::Uuid {
-            uuid : VOXEL_SHADER_ID
-        };
-        Handle::<Shader>::Weak(asset_id).into()
+        "shaders/voxel.wgsl".into()
     }
 }
 
@@ -29,8 +25,8 @@ impl ComputeWorker for WriteTextureWorker {
 
         AppComputeWorkerBuilder::new(world)
             .add_uniform("pc", &DispatchParams::default())
-            .add_storage("nodePool", &vec![Node::default(); 10000])
-            .add_storage("leafData", &vec![0u32; 10000])
+            // .add_storage("nodePool", &vec![Node::default(); 10000])
+            // .add_storage("leafData", &vec![0u32; 10000])
             .add_texture(
                 "out_tex",
                 width,
@@ -44,7 +40,7 @@ impl ComputeWorker for WriteTextureWorker {
                     (height + workgroup_size - 1) / workgroup_size,
                     1,
                 ],
-                &["pc", "nodePool", "leafData", "out_tex"],
+                &["pc",  "out_tex"],
             )
             .continuous()
             .build()

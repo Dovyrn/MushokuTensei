@@ -15,7 +15,6 @@ use crate::config::{AppSettings, Brick, Material};
 use crate::render::*;
 use crate::voxel_map::{Sector, SvoStorage, VoxelWorld};
 
-pub const VOXEL_SHADER_ID: Uuid = Uuid::from_u128(0x52b0f15c1d6b4b4e9f7a8b9c0d1e2f34);
 
 fn main() {
     let mut app = App::new();
@@ -45,7 +44,6 @@ fn main() {
         ExtractResourcePlugin::<DisplayImage>::default(),
         ExtractResourcePlugin::<ComputeTransfer>::default(),
     ))
-        .add_systems(PreStartup, register_shader)
     .add_systems(Startup, (setup_camera, spawn_sphere))
     .add_systems(
         Update,
@@ -59,7 +57,6 @@ fn main() {
         ).chain(),
     );
 
-    // In main.rs
     app.insert_resource(VoxelWorld {
         palette: vec![
             Material::default(),
@@ -79,15 +76,6 @@ fn main() {
     app.run();
 }
 
-fn register_shader(mut shaders : ResMut<Assets<Shader>>) {
-    let shader_bytes = include_bytes!("../assets/shaders/raytrace.spv");
-
-    let shader = Shader::from_spirv(shader_bytes.to_vec(), "shaders/raytrace.spv");
-
-    shaders.insert(bevy::asset::AssetId::Uuid{
-        uuid : VOXEL_SHADER_ID
-    }, shader);
-}
 
 
 pub fn spawn_sphere(mut world: ResMut<VoxelWorld>) {
@@ -142,7 +130,7 @@ pub fn camera_movement_system(
         let (mut yaw, mut pitch, _) = transform.rotation.to_euler(EulerRot::YXZ);
 
         yaw -= rotation_move.x * sensitivity;
-        pitch -= rotation_move.y * sensitivity;
+        pitch += rotation_move.y * sensitivity;
         pitch = pitch.clamp(-1.5, 1.5);
 
         transform.rotation = Quat::from_euler(EulerRot::YXZ, yaw, pitch, 0.0);

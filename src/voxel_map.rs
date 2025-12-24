@@ -103,7 +103,7 @@ pub fn build_tlas(
     }
 
     let mut layer_nodes = chunk_roots;
-    let mut current_scale = 8;
+    let mut current_scale = 6;
 
     while current_scale <= root_scale || layer_nodes.len() > 1 {
         let mut next_layer = Vec::new();

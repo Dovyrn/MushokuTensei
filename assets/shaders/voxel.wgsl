@@ -19,9 +19,36 @@ struct DispatchParams {
 };
 
 @group(0) @binding(0) var<uniform> pc: DispatchParams;
-@group(0) @binding(1) var<storage, read> nodePool: array<Node>;
-@group(0) @binding(2) var<storage, read> leafData: array<u32>;
-@group(0) @binding(3) var out_tex: texture_storage_2d<rgba8unorm, write>;
+//@group(0) @binding(1) var<storage, read> nodePool: array<Node>;
+//@group(0) @binding(2) var<storage, read> leafData: array<u32>;
+@group(0) @binding(1) var out_tex: texture_storage_2d<rgba8unorm, write>;
+
+const NODE_POOL: array<Node, 3> = array<Node, 3>(
+
+    Node(vec4<u32>(
+        (1u << 2),
+        1u,
+        0u,
+        0u
+    )),
+
+    Node(vec4<u32>(
+        (2u << 2),
+        1u,
+        0u,
+        0u
+    )),
+
+    Node(vec4<u32>(
+        (1u) | (0u << 2),
+        1u,
+        0u,
+        0u
+    ))
+);
+
+const LEAF_DATA: array<u32, 1> = array<u32, 1>(1u);
+
 
 fn is_leaf(node: Node) -> bool {
     return (node.packed_data[0] & 1u) != 0u;
@@ -111,7 +138,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
     var stack: array<u32, 11>;
     var scaleExp: i32 = 21;
     var nodeIdx: u32 = 0u;
-    var node = nodePool[nodeIdx];
+    var node = NODE_POOL[nodeIdx];
 
     let invDir = 1.0 / -abs(dir);
     var mirrorMask: u32 = 0u;
@@ -143,7 +170,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
         while (check_pop_mask(node, childIdx) && !is_leaf(node) && scaleExp >= 2) {
             stack[scaleExp >> 1] = nodeIdx;
             nodeIdx = child_ptr(node) + popcnt_var64(node, childIdx);
-            node = nodePool[nodeIdx];
+            node = NODE_POOL[nodeIdx];
             scaleExp -= 2;
             childIdx = get_node_cell_index(pos, scaleExp) ^ mirrorMask;
         }
@@ -173,7 +200,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
             scaleExp = diffExp;
             if (diffExp > 21) { break; }
             nodeIdx = stack[scaleExp >> 1];
-            node = nodePool[nodeIdx];
+            node = NODE_POOL[nodeIdx];
         }
         skipNextHit = false;
         hit.steps = i;
@@ -181,7 +208,7 @@ fn raycast(origin_in: vec3<f32>, dir: vec3<f32>) -> HitInfo {
 
     if (is_leaf(node) && scaleExp <= 21) {
         pos = get_mirrored_pos(pos, dir, false);
-        hit.materialid = i32(leafData[child_ptr(node) + popcnt_var64(node, childIdx)]);
+        hit.materialid = i32(LEAF_DATA[child_ptr(node) + popcnt_var64(node, childIdx)]);
         hit.pos = pos;
         let tmax = min(min(sideDist.x, sideDist.y), sideDist.z);
         hit.normal = select(vec3(0.0), -sign(dir), sideDist <= vec3(tmax));
@@ -199,9 +226,10 @@ fn main(@builtin(global_invocation_id) screenPos: vec3<u32>) {
     let origin = vec3(0.0) * scale + ray.pos * scale + 1.0;
     let hit = raycast(origin, ray.dir);
     var albedo = vec3(0.53, 0.81, 0.98);
-//    if (!hit.miss) {
-//        albedo = hit.normal * 0.5 + 0.5;
-//    }
-    albedo = viridis((f32(hit.steps) / 50));
+    if (hit.materialid != 0) {
+        albedo = hit.normal * 0.5 + 0.5;
+    } else {
+        albedo = viridis((f32(hit.steps) / 50));
+    }
    textureStore(out_tex, screenPos.xy, vec4(albedo, 1.0));
 }
