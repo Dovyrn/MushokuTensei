@@ -1,9 +1,9 @@
 use crate::config::{AppSettings, DispatchParams, Node};
 use crate::render::VoxelCamera;
+use crate::voxel_map::SvoStorage;
 use bevy::prelude::*;
 use bevy::render::render_resource::{ShaderRef, StorageTextureAccess, TextureFormat};
 use bevy_app_compute::prelude::*;
-use crate::voxel_map::SvoStorage;
 #[derive(TypePath)]
 pub struct VoxelShader;
 
@@ -25,8 +25,8 @@ impl ComputeWorker for WriteTextureWorker {
 
         AppComputeWorkerBuilder::new(world)
             .add_uniform("pc", &DispatchParams::default())
-            // .add_storage("nodePool", &vec![Node::default(); 10000])
-            // .add_storage("leafData", &vec![0u32; 10000])
+            .add_storage("nodePool", &vec![Node::default(); 600_000])
+            .add_storage("leafData", &vec![0u32; 600_000])
             .add_texture(
                 "out_tex",
                 width,
@@ -40,7 +40,7 @@ impl ComputeWorker for WriteTextureWorker {
                     (height + workgroup_size - 1) / workgroup_size,
                     1,
                 ],
-                &["pc",  "out_tex"],
+                &["pc", "nodePool", "leafData", "out_tex"],
             )
             .continuous()
             .build()
@@ -50,7 +50,7 @@ impl ComputeWorker for WriteTextureWorker {
 pub fn handle_compute_params(
     mut worker: ResMut<AppComputeWorker<WriteTextureWorker>>,
     camera_q: Query<(&Camera, &GlobalTransform), With<VoxelCamera>>,
-    svo : Res<SvoStorage>,
+    svo: Res<SvoStorage>,
 ) {
     let Ok((camera, transform)) = camera_q.single() else {
         return;

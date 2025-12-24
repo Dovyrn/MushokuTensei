@@ -9,6 +9,7 @@ use bevy::render::render_resource::{
 use bevy::render::texture::GpuImage;
 use bevy::window::WindowResized;
 use bevy_app_compute::prelude::*;
+use iyes_perf_ui::entries::PerfUiAllEntries;
 
 #[derive(Resource, Clone, ExtractResource, Default)]
 pub struct DisplayImage(pub Handle<Image>);
@@ -19,7 +20,7 @@ pub struct ComputeTransfer(pub TextureView);
 #[derive(Component)]
 pub struct VoxelCamera;
 
-pub fn setup_camera(mut commands: Commands) {
+pub fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2d::default(),
         Camera {
@@ -30,9 +31,10 @@ pub fn setup_camera(mut commands: Commands) {
     commands.spawn((
         Camera3d::default(),
         VoxelCamera,
-        Transform::from_xyz(0.0, 0.0, 0.0) 
-            .looking_at(Vec3::splat(512.0), Vec3::Y),
+        Transform::from_xyz(0.0, 0.0, 0.0).looking_at(Vec3::splat(512.0), Vec3::Y),
     ));
+
+    commands.spawn(PerfUiAllEntries::default());
 }
 
 pub fn handle_resize(world: &mut World) {
@@ -78,7 +80,7 @@ pub fn handle_resize(world: &mut World) {
     }
 
     world.insert_resource(DisplayImage(handle));
-
+    println!("Resizing window and recreating worker");
     let new_worker = WriteTextureWorker::build(world);
     world.insert_resource(new_worker);
 }

@@ -43,7 +43,7 @@ impl Default for Material {
 #[repr(C)]
 #[derive(ShaderType, Clone, Copy, Default, Debug, Pod, Zeroable)]
 pub struct Node {
-    pub packed_data: UVec4,
+    pub packed_data: [u32; 4],
 }
 
 impl Node {
@@ -54,12 +54,12 @@ impl Node {
         }
 
         Self {
-            packed_data: UVec4::new(
+            packed_data: [
                 p0,
                 (pop_mask & 0xFFFFFFFF) as u32,
                 (pop_mask >> 32) as u32,
-                0,
-            ),
+                0
+                ]
         }
     }
 }
